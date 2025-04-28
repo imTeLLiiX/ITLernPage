@@ -1,0 +1,168 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["mongoDb"]
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String    @unique
+  password      String
+  role          Role      @default(USER)
+  stripeId      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  teacherCourses Course[] @relation("TeacherCourses")
+  enrollments   Enrollment[]
+  progress      Progress[]
+  achievements  Achievement[]
+  xp            Int       @default(0)
+  level         Int       @default(1)
+  avatar        String?
+  bio           String?
+}
+
+model Course {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String
+  slug            String    @unique
+  difficulty      Difficulty
+  xp              Int
+  startDate       DateTime
+  endDate         DateTime
+  price           Float
+  maxParticipants Int
+  teacherId       String    @db.ObjectId
+  teacher         User      @relation("TeacherCourses", fields: [teacherId], references: [id])
+  enrollments     Enrollment[]
+  modules         Module[]
+  category        Category  @relation(fields: [categoryId], references: [id])
+  categoryId      String    @db.ObjectId
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Module {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  content     String
+  order       Int
+  xp          Int
+  difficulty  Difficulty
+  courseId    String    @db.ObjectId
+  course      Course    @relation(fields: [courseId], references: [id])
+  lessons     Lesson[]
+  quizzes     Quiz[]
+  progress    Progress[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Lesson {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  content     String
+  order       Int
+  xp          Int
+  moduleId    String    @db.ObjectId
+  module      Module    @relation(fields: [moduleId], references: [id])
+  progress    Progress[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Quiz {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  questions   Json
+  xp          Int
+  moduleId    String    @db.ObjectId
+  module      Module    @relation(fields: [moduleId], references: [id])
+  progress    Progress[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Progress {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id])
+  lessonId    String?   @db.ObjectId
+  lesson      Lesson?   @relation(fields: [lessonId], references: [id])
+  quizId      String?   @db.ObjectId
+  quiz        Quiz?     @relation(fields: [quizId], references: [id])
+  moduleId    String?   @db.ObjectId
+  module      Module?   @relation(fields: [moduleId], references: [id])
+  completed   Boolean   @default(false)
+  score       Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, lessonId])
+  @@unique([userId, quizId])
+  @@unique([userId, moduleId])
+}
+
+model Achievement {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  icon        String
+  xp          Int
+  userId      String    @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
+model Category {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String
+  icon        String
+  courses     Course[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Enrollment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  courseId  String   @db.ObjectId
+  status    EnrollmentStatus @default(PENDING)
+  user      User     @relation(fields: [userId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, courseId])
+}
+
+enum Role {
+  USER
+  TEACHER
+  ADMIN
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum EnrollmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+} 
