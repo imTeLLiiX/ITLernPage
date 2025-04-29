@@ -16,9 +16,9 @@ export async function GET(
         },
       },
       include: {
-        QuizQuestion: {
+        questions: {
           include: {
-            QuizAnswer: true,
+            answers: true,
           },
         },
       },
@@ -73,11 +73,11 @@ export async function POST(
         description: data.description,
         moduleId: params.moduleId,
         xp: data.xp || 0,
-        QuizQuestion: {
+        questions: {
           create: data.questions.map((q: any) => ({
             text: q.text,
             type: q.type,
-            QuizAnswer: {
+            answers: {
               create: q.answers.map((a: any) => ({
                 text: a.text,
                 isCorrect: a.isCorrect,
@@ -87,9 +87,9 @@ export async function POST(
         },
       },
       include: {
-        QuizQuestion: {
+        questions: {
           include: {
-            QuizAnswer: true,
+            answers: true,
           },
         },
       },
