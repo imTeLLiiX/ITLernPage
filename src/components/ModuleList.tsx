@@ -1,99 +1,65 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import Link from 'next/link';
-import { Module, Progress, Difficulty } from '@prisma/client';
-
-interface ModuleWithRelations {
-  id: string;
-  title: string;
-  content: string;
-  order: number;
-  xp: number;
-  difficulty: Difficulty;
-  courseId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  progress: Progress[];
-  lessons: {
-    id: string;
-  }[];
-  quizzes: {
-    id: string;
-  }[];
-}
+import { ModuleWithRelations } from '@/types/prisma';
 
 interface ModuleListProps {
-  modules: ModuleWithRelations[];
-  onModuleClick: (moduleId: string) => void;
+  courseId: string;
 }
 
-export default function ModuleList({ modules, onModuleClick }: ModuleListProps) {
-  const calculateProgress = (module: ModuleWithRelations) => {
-    const totalItems = module.lessons.length + module.quizzes.length;
-    if (totalItems === 0) return 0;
-    
-    const completedItems = module.progress.filter(p => p.completed).length;
-    return Math.round((completedItems / totalItems) * 100);
-  };
+export default function ModuleList({ courseId }: ModuleListProps) {
+  const [modules, setModules] = useState<ModuleWithRelations[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const getDifficultyColor = (difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED') => {
-    switch (difficulty) {
-      case 'BEGINNER':
-        return 'bg-green-100 text-green-800';
-      case 'INTERMEDIATE':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'ADVANCED':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  useEffect(() => {
+    const fetchModules = async () => {
+      try {
+        const response = await fetch(`/api/courses/${courseId}/modules`);
+        if (!response.ok) {
+          throw new Error('Module konnten nicht geladen werden');
+        }
+        const data = await response.json();
+        setModules(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchModules();
+  }, [courseId]);
+
+  if (loading) return <div>Lade Module...</div>;
+  if (error) return <div>Fehler: {error}</div>;
+  if (!modules.length) return <div>Keine Module verfügbar</div>;
 
   return (
     <div className="space-y-4">
       {modules.map((module) => (
-        <div
-          key={module.id}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => onModuleClick(module.id)}
-        >
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {module.title}
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {module.content}
-              </p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                {module.difficulty}
-              </span>
-              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                {module.xp} XP
-              </span>
-            </div>
-          </div>
+        <div key={module.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <h3 className="text-xl font-semibold mb-2">{module.title}</h3>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">{module.description}</p>
           
-          <div className="mt-4">
-            <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-1">
-              <span>Progress</span>
-              <span>{calculateProgress(module)}%</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-medium mb-2">Lektionen</h4>
+              <ul className="list-disc list-inside">
+                {module.lessons.map((lesson) => (
+                  <li key={lesson.id}>{lesson.title}</li>
+                ))}
+              </ul>
             </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full"
-                style={{ width: `${calculateProgress(module)}%` }}
-              />
+            
+            <div>
+              <h4 className="font-medium mb-2">Quizze</h4>
+              <ul className="list-disc list-inside">
+                {module.quizzes.map((quiz) => (
+                  <li key={quiz.id}>{quiz.title}</li>
+                ))}
+              </ul>
             </div>
-          </div>
-
-          <div className="mt-4 flex justify-between text-sm text-gray-500 dark:text-gray-400">
-            <span>{module.lessons.length} Lessons</span>
-            <span>{module.quizzes.length} Quizzes</span>
           </div>
         </div>
       ))}

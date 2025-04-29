@@ -1,25 +1,38 @@
 import { Prisma } from '@prisma/client';
 
-export type CourseWithRelations = Prisma.CourseGetPayload<{
+export type Course = Prisma.CourseGetPayload<{
   include: {
     teacher: {
       select: {
         id: true;
         name: true;
         email: true;
+        avatar: true;
       };
     };
-    participants: {
+    category: true;
+  };
+}>;
+
+export type ModuleWithRelations = Prisma.ModuleGetPayload<{
+  include: {
+    lessons: true;
+    quizzes: true;
+    progress: true;
+  };
+}>;
+
+export type CourseWithRelations = Prisma.CourseGetPayload<{
+  include: {
+    teacher: true;
+    modules: {
       include: {
-        user: {
-          select: {
-            id: true;
-            name: true;
-            email: true;
-          };
-        };
+        lessons: true;
+        quizzes: true;
       };
     };
+    enrollments: true;
+    category: true;
   };
 }>;
 
