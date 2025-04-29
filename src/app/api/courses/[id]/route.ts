@@ -47,16 +47,16 @@ export async function GET(
 
     if (!course) {
       return NextResponse.json(
-        { error: 'Course not found' },
+        { error: 'Kurs nicht gefunden' },
         { status: 404 }
       );
     }
 
     return NextResponse.json(course);
   } catch (error) {
-    console.error('Error fetching course:', error);
+    console.error('Fehler beim Abrufen des Kurses:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Interner Serverfehler' },
       { status: 500 }
     );
   }
@@ -68,88 +68,47 @@ export async function PUT(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    if (!session?.user) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Nicht autorisiert' },
         { status: 401 }
-      );
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
       );
     }
 
     const course = await prisma.course.findUnique({
       where: { id: params.id },
-      include: {
-        modules: {
-          include: {
-            lessons: true,
-            quizzes: true
-          }
-        }
-      }
+      include: { teacher: true },
     });
 
     if (!course) {
       return NextResponse.json(
-        { error: 'Course not found' },
+        { error: 'Kurs nicht gefunden' },
         { status: 404 }
       );
     }
 
-    if (course.teacherId !== user.id && user.role !== Role.ADMIN) {
+    if (course.teacher.id !== session.user.id) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Nicht autorisiert' },
         { status: 403 }
       );
     }
 
-    const body = await request.json();
-    const validatedData = courseSchema.parse(body);
-
+    const data = await request.json();
     const updatedCourse = await prisma.course.update({
       where: { id: params.id },
-      data: validatedData,
-      include: {
-        teacher: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true
-          }
-        },
-        enrollments: true,
-        modules: {
-          include: {
-            lessons: true,
-            quizzes: true
-          }
-        },
-        category: true
-      }
+      data: {
+        title: data.title,
+        description: data.description,
+        categoryId: data.categoryId,
+      },
     });
 
     return NextResponse.json(updatedCourse);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    console.error('Error updating course:', error);
+    console.error('Fehler beim Aktualisieren des Kurses:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Interner Serverfehler' },
       { status: 500 }
     );
   }
@@ -161,83 +120,41 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    if (!session?.user) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Nicht autorisiert' },
         { status: 401 }
-      );
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
       );
     }
 
     const course = await prisma.course.findUnique({
       where: { id: params.id },
-      include: {
-        modules: {
-          include: {
-            lessons: true,
-            quizzes: true
-          }
-        }
-      }
+      include: { teacher: true },
     });
 
     if (!course) {
       return NextResponse.json(
-        { error: 'Course not found' },
+        { error: 'Kurs nicht gefunden' },
         { status: 404 }
       );
     }
 
-    if (course.teacherId !== user.id && user.role !== Role.ADMIN) {
+    if (course.teacher.id !== session.user.id) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Nicht autorisiert' },
         { status: 403 }
       );
     }
 
-    // Delete all related data first
-    await prisma.$transaction([
-      prisma.progress.deleteMany({
-        where: {
-          OR: [
-            { moduleId: { in: course.modules.map(m => m.id) } },
-            { lessonId: { in: course.modules.flatMap(m => m.lessons.map(l => l.id)) } },
-            { quizId: { in: course.modules.flatMap(m => m.quizzes.map(q => q.id)) } }
-          ]
-        }
-      }),
-      prisma.enrollment.deleteMany({
-        where: { courseId: params.id }
-      }),
-      prisma.quiz.deleteMany({
-        where: { moduleId: { in: course.modules.map(m => m.id) } }
-      }),
-      prisma.lesson.deleteMany({
-        where: { moduleId: { in: course.modules.map(m => m.id) } }
-      }),
-      prisma.module.deleteMany({
-        where: { courseId: params.id }
-      }),
-      prisma.course.delete({
-        where: { id: params.id }
-      })
-    ]);
+    await prisma.course.delete({
+      where: { id: params.id },
+    });
 
-    return NextResponse.json({ message: 'Course deleted successfully' });
+    return NextResponse.json({ message: 'Kurs erfolgreich gelöscht' });
   } catch (error) {
-    console.error('Error deleting course:', error);
+    console.error('Fehler beim Löschen des Kurses:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Interner Serverfehler' },
       { status: 500 }
     );
   }

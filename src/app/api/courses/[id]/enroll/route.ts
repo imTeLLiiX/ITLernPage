@@ -15,55 +15,40 @@ export async function POST(request: Request, { params }: RouteParams) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.email) {
+    if (!session?.user) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Nicht autorisiert' },
         { status: 401 }
-      );
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
       );
     }
 
     const course = await prisma.course.findUnique({
       where: { id: params.id },
       include: {
-        _count: {
-          select: {
-            enrollments: true
-          }
-        }
-      }
+        enrollments: true,
+      },
     });
 
     if (!course) {
       return NextResponse.json(
-        { error: 'Course not found' },
+        { error: 'Kurs nicht gefunden' },
         { status: 404 }
       );
     }
 
-    // Check if user is already enrolled
+    // Prüfen, ob der Benutzer bereits eingeschrieben ist
     const existingEnrollment = await prisma.enrollment.findUnique({
       where: {
         userId_courseId: {
-          userId: user.id,
-          courseId: course.id,
-        },
-      },
+          userId: session.user.id,
+          courseId: course.id
+        }
+      }
     });
 
     if (existingEnrollment) {
       return NextResponse.json(
-        { error: 'Already enrolled in this course' },
+        { error: 'Sie sind bereits in diesem Kurs eingeschrieben' },
         { status: 400 }
       );
     }
@@ -76,20 +61,19 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Create enrollment
+    // Neue Einschreibung erstellen
     const enrollment = await prisma.enrollment.create({
       data: {
-        userId: user.id,
+        userId: session.user.id,
         courseId: course.id,
-        status: 'PENDING',
       },
     });
 
     return NextResponse.json(enrollment);
   } catch (error) {
-    console.error('Error enrolling in course:', error);
+    console.error('Fehler bei der Kurseinschreibung:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { error: 'Interner Serverfehler' },
       { status: 500 }
     );
   }
