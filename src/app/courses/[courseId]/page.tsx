@@ -2,10 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Course } from '@prisma/client';
+import { Course, User, Category } from '@prisma/client';
 import ModuleList from '@/components/ModuleList';
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
+
+interface CourseWithRelations extends Course {
+  teacher: User;
+  category: Category;
+  enrollments: Array<{ userId: string }>;
+}
 
 interface PageProps {
   params: {
@@ -15,7 +21,7 @@ interface PageProps {
 
 export default function CoursePage({ params }: PageProps) {
   const { courseId } = params;
-  const [course, setCourse] = useState<Course | null>(null);
+  const [course, setCourse] = useState<CourseWithRelations | null>(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
@@ -28,7 +34,7 @@ export default function CoursePage({ params }: PageProps) {
         if (!response.ok) throw new Error('Fehler beim Laden des Kurses');
         const data = await response.json();
         setCourse(data);
-        setIsEnrolled(data.enrollments?.some((e: any) => e.userId === session?.user?.id) ?? false);
+        setIsEnrolled(data.enrollments?.some((e: { userId: string }) => e.userId === session?.user?.id) ?? false);
       } catch (error) {
         console.error('Fehler:', error);
       } finally {
@@ -69,7 +75,7 @@ export default function CoursePage({ params }: PageProps) {
     return <div>Kurs nicht gefunden</div>;
   }
 
-  const isTeacher = session?.user?.id === course.teacher?.id;
+  const isTeacher = session?.user?.id === course.teacherId;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -92,11 +98,11 @@ export default function CoursePage({ params }: PageProps) {
             </div>
             <div className="mb-4">
               <span className="font-semibold">Kategorie:</span>{' '}
-              {course.category?.name}
+              {course.category.name}
             </div>
             <div className="mb-4">
               <span className="font-semibold">Dozent:</span>{' '}
-              {course.teacher?.name}
+              {course.teacher.name}
             </div>
           </div>
           <div className="flex flex-col gap-2">
