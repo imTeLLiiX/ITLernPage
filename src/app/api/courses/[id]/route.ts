@@ -31,18 +31,16 @@ export async function GET(
             id: true,
             name: true,
             email: true,
-            avatar: true
-          }
+          },
         },
-        enrollments: true,
+        category: true,
         modules: {
           include: {
             lessons: true,
-            quizzes: true
-          }
+            quizzes: true,
+          },
         },
-        category: true
-      }
+      },
     });
 
     if (!course) {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 
 interface RouteParams {
@@ -9,32 +9,20 @@ interface RouteParams {
   };
 }
 
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getServerSession(authOptions);
     
-    // @ts-ignore - Prisma types are not correctly recognized
     const modules = await prisma.module.findMany({
       where: {
         courseId: params.id,
       },
       include: {
-        progress: true,
-        lessons: {
-          select: {
-            id: true,
-            title: true,
-          },
-        },
-        quizzes: {
-          select: {
-            id: true,
-            title: true,
-          },
-        },
-      },
-      orderBy: {
-        order: 'asc',
+        lessons: true,
+        quizzes: true,
       },
     });
 
@@ -64,9 +52,9 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     return NextResponse.json(modulesWithoutProgress);
   } catch (error) {
-    console.error('Error fetching modules:', error);
+    console.error('Fehler beim Abrufen der Module:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { error: 'Interner Serverfehler' },
       { status: 500 }
     );
   }

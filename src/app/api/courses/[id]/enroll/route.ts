@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
+import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
 interface RouteParams {
@@ -11,10 +11,12 @@ interface RouteParams {
   };
 }
 
-export async function POST(request: Request, { params }: RouteParams) {
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getServerSession(authOptions);
-
     if (!session?.user) {
       return NextResponse.json(
         { error: 'Nicht autorisiert' },
